@@ -60,7 +60,7 @@ public class DimSinkApp {
 //        env.getCheckpointConfig().setCheckpointStorage("hdfs://nwh120:9020/flink_realtime/ck");
 //        System.setProperty("HADOOP_USER_NAME","lqs");
 
-        //TODO 2.读取 Kafka topic_dbrt 主题数据创建流
+        //TODO 2.读取 Kafka topic_db 主题数据创建流
         DataStreamSource<String> kafkaDS = env.addSource(KafkaUtil.getKafkaConsumer("topic_db", "dim_app_sink"));
 
         //TODO 3.过滤掉非JSON格式的数据,并将其写入侧输出流
@@ -102,6 +102,8 @@ public class DimSinkApp {
 
         //TODO 6.连接主流与广播流
         BroadcastConnectedStream<JSONObject, String> connectedStream = jsonObjDS.connect(broadcastStream);
+
+
 
         //TODO 7.根据广播流数据处理主流数据
         SingleOutputStreamOperator<JSONObject> hbaseDS = connectedStream.process(new TableProcessFunction(mapStateDescriptor));

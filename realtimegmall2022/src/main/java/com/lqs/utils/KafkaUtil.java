@@ -7,6 +7,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -24,19 +25,16 @@ import java.util.Properties;
  */
 public class KafkaUtil {
 
-    static String BOOTSTRAP_SERVERS = "nwh120:9092";
-    static String DEFAULT_TOPIC = "default_topic";
-    static Properties properties = new Properties();
+    private static Properties properties = new Properties();
+    private static final String BOOTSTRAP_SERVERS = "nwh120:9092";
 
-    /**
-     *  此处从 Kafka 读取数据，创建 getKafkaConsumer(String topic, String groupId) 方法
-     * @param topic 主题
-     * @param groupId 组id
-     * @return FlinkKafkaConsumer
-     */
-    public static FlinkKafkaConsumer<String> getKafkaConsumer(String topic, String groupId) {
-        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
-        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+    static {
+        properties.setProperty(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+    }
+
+    public static FlinkKafkaConsumer<String> getKafkaConsumer(String topic, String group_id) {
+
+        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, group_id);
 
         return new FlinkKafkaConsumer<String>(topic,
                 new KafkaDeserializationSchema<String>() {
@@ -60,28 +58,21 @@ public class KafkaUtil {
                     }
                 },
                 properties);
-
     }
 
-    public static SinkFunction<String> getKafkaProducer(String topic) {
-        return new FlinkKafkaProducer<String>(
-                topic,
+    public static FlinkKafkaProducer<String> getKafkaProducer(String topic) {
+        return new FlinkKafkaProducer<String>(topic,
                 new SimpleStringSchema(),
-                properties
-        );
+                properties);
     }
 
-    public static String getTopicDbDDl(String groupId) {
-        return "CREATE TABLE topic_db ( " +
-                "  `database` String, " +
-                "  `table` String, " +
-                "  `type` String, " +
-                "  `data` Map<String,String>, " +
-                "  `old` Map<String,String>, " +
-                "  `pt` AS PROCTIME() " +
-                ")" + KafkaUtil.getKafkaDDL("topic_db", groupId);
-    }
-
+    /**
+     * Kafka-Source DDL 语句
+     *
+     * @param topic   数据源主题
+     * @param groupId 消费者组
+     * @return 拼接好的 Kafka 数据源 DDL 语句
+     */
     public static String getKafkaDDL(String topic, String groupId) {
         return " with ('connector' = 'kafka', " +
                 " 'topic' = '" + topic + "'," +
@@ -106,6 +97,17 @@ public class KafkaUtil {
                 "  'key.format' = 'json', " +
                 "  'value.format' = 'json' " +
                 ")";
+    }
+
+    public static String getTopicDbDDl(String groupId) {
+        return "CREATE TABLE topic_db ( " +
+                "  `database` String, " +
+                "  `table` String, " +
+                "  `type` String, " +
+                "  `data` Map<String,String>, " +
+                "  `old` Map<String,String>, " +
+                "  `pt` AS PROCTIME() " +
+                ")" + KafkaUtil.getKafkaDDL("topic_db", groupId);
     }
 
 }

@@ -5,6 +5,7 @@ import com.lqs.utils.SqlUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
 
 import java.time.Duration;
 
@@ -54,10 +55,12 @@ public class TradeOrderDetail {
                 "and `table`='order_detail' " +
                 "and `type`='insert'"
         );
-
         tableEnvironment.createTemporaryView("order_detail", orderDetailTable);
+//        //打印测试
+//        Table table = tableEnvironment.sqlQuery("select * from order_detail");
+//        tableEnvironment.toAppendStream(table, Row.class).print(">>>>>>>>>");
 
-        //TODO 4、过滤出订单数据
+       //TODO 4、过滤出订单数据
         Table orderInfoTable = tableEnvironment.sqlQuery("" +
                 "select " +
                 "    data['id'] id, " +
@@ -83,7 +86,7 @@ public class TradeOrderDetail {
                 "    `type`, " +
                 "    `old` " +
                 "from topic_db " +
-                "where `database`='gamll2204' " +
+                "where `database`='gmall2204' " +
                 "and `table`='order_info' " +
                 "and (`type`='insert' or `type`='update')"
         );
@@ -91,7 +94,7 @@ public class TradeOrderDetail {
         tableEnvironment.createTemporaryView("order_info", orderInfoTable);
 
         //TODO 5、过滤出订单明细活动数据
-        Table orderActivityTable = tableEnvironment.sqlQuery("" +
+       Table orderActivityTable = tableEnvironment.sqlQuery("" +
                 "select " +
                 "    data['id'] id, " +
                 "    data['order_id'] order_id, " +
@@ -172,7 +175,8 @@ public class TradeOrderDetail {
                 "    oc.coupon_id, " +
                 "    oc.coupon_use_id, " +
                 "    oc.create_time coupon_create_time, " +
-                "    dic.dic_name " +
+                "    dic.dic_name, " +
+                "    current_row_timestamp() ts " +
                 "from order_detail od " +
                 "join order_info oi " +
                 "on od.order_id = oi.id " +
@@ -185,6 +189,9 @@ public class TradeOrderDetail {
         );
 
         tableEnvironment.createTemporaryView("result_table",resultTable);
+        //打印测试
+//        Table table = tableEnvironment.sqlQuery("select * from result_table");
+//        tableEnvironment.toChangelogStream(table).print(">>>>>>>>>");
 
         //TODO 9、创建Kafka upsert-kafka表
         tableEnvironment.executeSql("" +
@@ -231,6 +238,7 @@ public class TradeOrderDetail {
                 "    `coupon_use_id` string, " +
                 "    `coupon_create_time` string , " +
                 "    `dic_name` string, " +
+                "    `ts` TIMESTAMP_LTZ(3), " +
                 "    PRIMARY KEY (order_detail_id) NOT ENFORCED " +
                 ")" + KafkaUtil.getUpsertKafkaDDL("dwd_trade_order_detail")
         );

@@ -9,13 +9,19 @@ package com.lqs.common;
  */
 public class GmallConfig {
 
-    //TODO Phoenix库名
+    /**  Phoenix库名 */
     public static final String HBASE_SCHEMA = "GMALL2204_REALTIME";
 
-    //Phoenix 驱动
+    /** Phoenix 驱动 */
     public static final String PHOENIX_DRIVER = "org.apache.phoenix.jdbc.PhoenixDriver";
 
-    //Phoenix 连接参数
+    /** Phoenix 连接参数 */
     public static final String PHOENIX_SERVER = "jdbc:phoenix:nwh120,nwh121,nwh122:2181";
+
+    /** ClickHouse 驱动 */
+    public static final String CLICKHOUSE_DRIVER = "ru.yandex.clickhouse.ClickHouseDriver";
+
+    /** ClickHouse 连接 URL */
+    public static final String CLICKHOUSE_URL = "jdbc:clickhouse://nwh120:8123/gmall2204";
 
 }
