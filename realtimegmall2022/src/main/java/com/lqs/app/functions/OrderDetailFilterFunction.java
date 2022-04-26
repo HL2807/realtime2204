@@ -35,7 +35,7 @@ public class OrderDetailFilterFunction {
                     public void flatMap(String value, Collector<JSONObject> out) throws Exception {
                         if (!"".equals(value)) {
                             JSONObject jsonObject = JSON.parseObject(value);
-                            if ("insert".equals(jsonObject.getString(value))) {
+                            if ("insert".equals(jsonObject.getString("type"))) {
                                 out.collect(jsonObject);
                             }
                         }
