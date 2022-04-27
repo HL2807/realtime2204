@@ -4,11 +4,25 @@ import com.alibaba.fastjson.JSONObject;
 import com.lqs.app.functions.DimAsyncFunction;
 import com.lqs.app.functions.OrderDetailFilterFunction;
 import com.lqs.bean.TradeTrademarkCategoryUserSpuOrder;
+import com.lqs.utils.ClickHouseUtil;
+import com.lqs.utils.DateFormatUtil;
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.util.Collector;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -67,6 +81,7 @@ public class TradeTrademarkCategoryUserSpuOrderWindow {
                                 .userId(value.getString("user_id"))
                                 .orderCount(1L)
                                 .orderAmount(value.getDouble("split_total_amount"))
+                                .ts(value.getLong("order_create_time"))
                                 .build();
                     }
                 }
@@ -102,10 +117,11 @@ public class TradeTrademarkCategoryUserSpuOrderWindow {
 
                     @Override
                     public void join(TradeTrademarkCategoryUserSpuOrder input, JSONObject dimInfo) {
-                        if (dimInfo!=null){
+                        if (dimInfo != null) {
                             input.setSpuId(dimInfo.getString("SPU_ID"));
                             input.setTrademarkId(dimInfo.getString("TM_ID"));
-                            input.setCategory3Id(dimInfo.getString("CATEGORY3_ID"));                        }
+                            input.setCategory3Id(dimInfo.getString("CATEGORY3_ID"));
+                        }
                     }
                 },
                 60,
@@ -124,7 +140,7 @@ public class TradeTrademarkCategoryUserSpuOrderWindow {
 
                     @Override
                     public void join(TradeTrademarkCategoryUserSpuOrder input, JSONObject dimInfo) {
-                        if (dimInfo!=null){
+                        if (dimInfo != null) {
                             input.setSpuName(dimInfo.getString("SPU_NAME"));
                         }
                     }
@@ -223,10 +239,75 @@ public class TradeTrademarkCategoryUserSpuOrderWindow {
         withCategory1DS.print("withCategory1DS>>>>>>>>");
 
         //TODO 5.提取时间戳生成WaterMark
+        SingleOutputStreamOperator<TradeTrademarkCategoryUserSpuOrder> userSpuOrderWithWatermark = withCategory1DS.assignTimestampsAndWatermarks(
+                WatermarkStrategy
+                        .<TradeTrademarkCategoryUserSpuOrder>forBoundedOutOfOrderness(Duration.ofSeconds(2))
+                        .withTimestampAssigner(
+                                new SerializableTimestampAssigner<TradeTrademarkCategoryUserSpuOrder>() {
+                                    @Override
+                                    public long extractTimestamp(TradeTrademarkCategoryUserSpuOrder element, long recordTimestamp) {
+                                        return element.getTs();
+                                    }
+                                }
+                        )
+        );
 
         //TODO 6.分组、开窗聚合
+        KeyedStream<TradeTrademarkCategoryUserSpuOrder, String> keyedStream = userSpuOrderWithWatermark.keyBy(
+                new KeySelector<TradeTrademarkCategoryUserSpuOrder, String>() {
+                    @Override
+                    public String getKey(TradeTrademarkCategoryUserSpuOrder value) throws Exception {
+                        return value.getUserId() + "-" +
+                                value.getCategory1Id() + "-" +
+                                value.getCategory1Name() + "-" +
+                                value.getCategory2Id() + "-" +
+                                value.getCategory2Name() + "-" +
+                                value.getCategory3Id() + "-" +
+                                value.getCategory3Name() + "-" +
+                                value.getSpuId() + "-" +
+                                value.getSpuName() + "-" +
+                                value.getTrademarkId() + "-" +
+                                value.getTrademarkName();
+                    }
+                }
+        );
+
+        //TODO 开窗
+        WindowedStream<TradeTrademarkCategoryUserSpuOrder, String, TimeWindow> windowedStream = keyedStream.window(TumblingEventTimeWindows.of(Time.seconds(10)));
+
+        SingleOutputStreamOperator<TradeTrademarkCategoryUserSpuOrder> resultDS = windowedStream.reduce(
+                new ReduceFunction<TradeTrademarkCategoryUserSpuOrder>() {
+                    @Override
+                    public TradeTrademarkCategoryUserSpuOrder reduce(TradeTrademarkCategoryUserSpuOrder value1, TradeTrademarkCategoryUserSpuOrder value2) throws Exception {
+
+                        value1.setOrderCount(value1.getOrderCount() + value2.getOrderCount());
+                        value1.setOrderAmount(value1.getOrderAmount() + value2.getOrderAmount());
+                        return value1;
+
+                    }
+                },
+                new WindowFunction<TradeTrademarkCategoryUserSpuOrder, TradeTrademarkCategoryUserSpuOrder, String, TimeWindow>() {
+                    @Override
+                    public void apply(String s, TimeWindow window, Iterable<TradeTrademarkCategoryUserSpuOrder> input, Collector<TradeTrademarkCategoryUserSpuOrder> out) throws Exception {
+
+                        TradeTrademarkCategoryUserSpuOrder orderNext = input.iterator().next();
+
+                        orderNext.setStt(DateFormatUtil.toYmdHms(window.getStart()));
+                        orderNext.setEdt(DateFormatUtil.toYmdHms(window.getEnd()));
+
+                        out.collect(orderNext);
+
+                    }
+                }
+        );
 
         //TODO 7.将数据写出到ClickHouse
+        resultDS.print("resultDS>>>>>>");
+        resultDS.addSink(
+                ClickHouseUtil.getClickHouseSink(
+                        "insert into dws_trade_trademark_category_user_spu_order_window values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+                )
+        );
 
         //TODO 8.启动任务
         env.execute("TradeTrademarkCategoryUserSpuOrderWindow");
