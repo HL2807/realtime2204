@@ -134,8 +134,8 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject,St
         TableProcess tableProcess = broadcastState.get(value.getString("table"));
 
         String type = value.getString("type");
-        System.out.println("tablep"+tableProcess);
-        System.out.println("type"+type);
+//        System.out.println("tablep"+tableProcess);
+//        System.out.println("type"+type);
         if (tableProcess != null && ("bootstrap-insert".equals(type) || "insert".equals(type) || "update".equals(type))) {
 
             //2.根据sinkColumns配置信息过滤字段
@@ -146,7 +146,7 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject,St
             out.collect(value);
 
         } else {
-//            System.out.println("过滤掉：" + value);
+            System.out.println("过滤掉：" + value);
         }
     }
 

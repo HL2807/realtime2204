@@ -70,7 +70,7 @@ public class TradeTrademarkCategoryUserSpuOrderWindow {
         String groupId = "sku_user_order_window";
         SingleOutputStreamOperator<JSONObject> orderDetailJsonObjectDS = OrderDetailFilterFunction.getDwOrderDetail(env, groupId);
 
-        orderDetailJsonObjectDS.print("test>>>>>>>>>>");
+//        orderDetailJsonObjectDS.print("test>>>>>>>>>>");
         //TODO 3、将数据转换为JavaBean
         SingleOutputStreamOperator<TradeTrademarkCategoryUserSpuOrder> skuUserOrderDS = orderDetailJsonObjectDS.map(
                 new MapFunction<JSONObject, TradeTrademarkCategoryUserSpuOrder>() {
@@ -236,7 +236,7 @@ public class TradeTrademarkCategoryUserSpuOrderWindow {
         );
 
         //打印测试
-        withCategory1DS.print("withCategory1DS>>>>>>>>");
+//        withCategory1DS.print("withCategory1DS>>>>>>>>");
 
         //TODO 5.提取时间戳生成WaterMark
         SingleOutputStreamOperator<TradeTrademarkCategoryUserSpuOrder> userSpuOrderWithWatermark = withCategory1DS.assignTimestampsAndWatermarks(
