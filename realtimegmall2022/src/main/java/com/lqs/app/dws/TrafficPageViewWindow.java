@@ -114,7 +114,7 @@ public class TrafficPageViewWindow {
                         )
         );
 
-        //TODO 6、安装mid进行分组
+        //TODO 6、按照mid进行分组
         KeyedStream<JSONObject, String> keyedStream = homeAndDetailPageWithDS.keyBy(value -> value.getJSONObject("common").getString("mid"));
 
         //TODO 7、使用状态编程计算主页和商品详情页的独立访客

@@ -69,7 +69,7 @@ public class TradePaymentSuccessWindow {
         FlinkKafkaConsumer<String> kafkaConsumer = KafkaUtil.getKafkaConsumer(topic, groupId);
         DataStreamSource<String> dataStreamSource = env.addSource(kafkaConsumer);
 
-        //TODO 3、过滤Null数据，并转换数据结构
+        //TODO 3、转换数据结构
         SingleOutputStreamOperator<JSONObject> jsonObjectDS = dataStreamSource.flatMap(
                 new FlatMapFunction<String, JSONObject>() {
                     @Override
@@ -81,7 +81,7 @@ public class TradePaymentSuccessWindow {
                 }
         );
 
-        //TODO 4、按照唯一键分组，使用的是支付ID
+        //TODO 4、按照唯一键分组，使用的是order_detail_id
         KeyedStream<JSONObject, String> keyedStream = jsonObjectDS.keyBy(value -> value.getString("order_detail_id"));
 
         //TODO 5、使用状态编程去重，保留一条数据

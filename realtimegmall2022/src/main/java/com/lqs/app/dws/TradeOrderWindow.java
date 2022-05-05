@@ -162,7 +162,7 @@ public class TradeOrderWindow {
                         )
         );
 
-        //TODO 7、安装user_id分组
+        //TODO 7、按照user_id分组
         KeyedStream<JSONObject, String> keyedByUidStream = jsonObjectWithWatermarkDS.keyBy(
                 new KeySelector<JSONObject, String>() {
                     @Override
